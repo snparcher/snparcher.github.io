@@ -1,0 +1,26 @@
+# Build output
+site/
+CLAUDE.md
+context/
+.claude
+# Pixi
+.pixi/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Plan files (not part of the built site)
+docs/superpowers/
