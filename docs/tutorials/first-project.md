@@ -1,6 +1,8 @@
 # Your first project: from SRA to filtered VCF
 
-We download 10 secretary bird (*Sagittarius serpentarius*) resequencing samples from the NCBI Sequence Read Archive, call variants against a reference genome, review the QC dashboard, and produce a filtered VCF ready for downstream population genomic analysis.
+We download 10 wild zebra finch (*Taeniopygia guttata*) whole-genome resequencing samples from the NCBI Sequence Read Archive, call variants against a reference genome, review the QC dashboard, and produce a filtered VCF ready for downstream population genomic analysis.
+
+This dataset is from BioProject [PRJEB10586](https://www.ncbi.nlm.nih.gov/bioproject/PRJEB10586) (Singhal et al. 2015, *Science*) and was used to benchmark snpArcher in [Mirchandani et al. 2024](https://doi.org/10.1093/molbev/msad270).
 
 **Time estimate:** Several hours of compute time (varies with machine and network speed).
 The hands-on configuration steps take about 20 minutes.
@@ -26,14 +28,14 @@ A single clone of snpArcher can serve any number of projects.
 Assuming your snpArcher clone is at `~/snparcher` and you want to organize projects under a `~/projects` directory:
 
 ```bash
-mkdir -p ~/projects/secretarybird_reseq/config
+mkdir -p ~/projects/zebrafinch_reseq/config
 ```
 
 ```text
 ~/
 ├── snparcher/                  # snpArcher repository clone
 └── projects/
-    └── secretarybird_reseq/
+    └── zebrafinch_reseq/
         └── config/             # will hold config.yaml and samples.csv
 ```
 
@@ -42,26 +44,21 @@ mkdir -p ~/projects/secretarybird_reseq/config
 The sample sheet tells snpArcher what samples to process and where their data are.
 Since we are downloading data from the SRA, each row needs a `sample_id`, `input_type` set to `srr`, and an SRA run accession in the `input` column.
 
-Create the file `~/projects/secretarybird_reseq/config/samples.csv` with the following content:
+Create the file `~/projects/zebrafinch_reseq/config/samples.csv` with the following content:
 
 ```csv
 sample_id,input_type,input
-bird_1,srr,SRR00000001
-bird_2,srr,SRR00000002
-bird_3,srr,SRR00000003
-bird_4,srr,SRR00000004
-bird_5,srr,SRR00000005
-bird_6,srr,SRR00000006
-bird_7,srr,SRR00000007
-bird_8,srr,SRR00000008
-bird_9,srr,SRR00000009
-bird_10,srr,SRR00000010
+zf_26462,srr,ERR1013161
+zf_28339,srr,ERR1013162
+zf_28353,srr,ERR1013163
+zf_26721,srr,ERR1013164
+zf_28456,srr,ERR1013165
+zf_28402,srr,ERR1013166
+zf_26516,srr,ERR1013167
+zf_28404,srr,ERR1013168
+zf_26820,srr,ERR1013169
+zf_26733,srr,ERR1013170
 ```
-
-!!! warning "Replace with real accessions"
-    The SRR accessions above are placeholders.
-    Replace them with real SRA run accessions for your secretary bird samples.
-    You can find accessions on the [NCBI SRA Run Selector](https://www.ncbi.nlm.nih.gov/Traces/study/) by searching for the relevant BioProject.
 
 Column definitions:
 
@@ -73,7 +70,7 @@ Column definitions:
     If your reads are already on disk, set `input_type` to `fastq` and provide the forward and reverse read paths joined with a semicolon:
     ```csv
     sample_id,input_type,input
-    bird_1,fastq,/storage/data/bird_1_R1.fq.gz;/storage/data/bird_1_R2.fq.gz
+    zf_26462,fastq,/storage/data/zf_26462_R1.fq.gz;/storage/data/zf_26462_R2.fq.gz
     ```
     Use absolute paths so the files can be found regardless of working directory.
 
@@ -84,24 +81,24 @@ For a full description of all sample sheet columns, see the [sample sheet refere
 Copy the default config from the snpArcher repository to your project:
 
 ```bash
-cp ~/snparcher/config/config.yaml ~/projects/secretarybird_reseq/config/config.yaml
+cp ~/snparcher/config/config.yaml ~/projects/zebrafinch_reseq/config/config.yaml
 ```
 
-Now open `~/projects/secretarybird_reseq/config/config.yaml` in your editor and modify it to match the following:
+Now open `~/projects/zebrafinch_reseq/config/config.yaml` in your editor and modify it to match the following:
 
 ```yaml
 samples: "config/samples.csv"
 
 reference:
-  name: "secretarybird"  # <-- short name for output filenames
-  source: "GCF_023839535.1"  # <-- RefSeq accession; snpArcher downloads it automatically
+  name: "zebrafinch"  # <-- short name for output filenames
+  source: "GCF_048771995.1"  # <-- RefSeq accession; snpArcher downloads it automatically
 
 variant_calling:
   expected_coverage: "low"
   tool: "gatk"
   ploidy: 2
   gatk:
-    het_prior: 0.005  # raised from GATK default of 0.001 for a non-model bird
+    het_prior: 0.005  # raised from GATK default of 0.001; zebra finch has higher diversity than humans
 
 intervals:
   enabled: true
@@ -126,7 +123,7 @@ Key choices in this config:
 - **`reference.source`**: A RefSeq accession. snpArcher will download and index the genome automatically. You can also provide a local file path or a URL here.
 - **`variant_calling.tool: "gatk"`**: GATK HaplotypeCaller is the default and best-tested variant caller in snpArcher.
 - **`variant_calling.gatk.het_prior: 0.005`**: The GATK default (0.001) is calibrated for humans. Most non-model organisms have higher nucleotide diversity, so we raise this to 0.005 to improve variant detection sensitivity. See [Variant calling explained](../explanation/variant-calling.md) for more on this choice.
-- **`variant_calling.ploidy: 2`**: Secretary birds are diploid. Set this correctly for your organism.
+- **`variant_calling.ploidy: 2`**: Zebra finches are diploid. Set this correctly for your organism.
 - **`modules.qc.enabled: true`**: Generates the interactive QC dashboard, which we will examine in Step 8.
 
 !!! note "Default settings"
@@ -139,7 +136,7 @@ The execution profile controls computational resources (threads, memory) and Sna
 Copy the default profile from the snpArcher repository to your project:
 
 ```bash
-cp -r ~/snparcher/workflow-profiles ~/projects/secretarybird_reseq/
+cp -r ~/snparcher/workflow-profiles ~/projects/zebrafinch_reseq/
 ```
 
 For local execution, the defaults in `workflow-profiles/default/config.yaml` are a reasonable starting point.
@@ -164,12 +161,12 @@ snakemake \
   --snakefile ~/snparcher/workflow/Snakefile \
   --use-conda \
   --dry-run \
-  --directory ~/projects/secretarybird_reseq
+  --directory ~/projects/zebrafinch_reseq
 ```
 
 Check the output for the following:
 
-- **Sample IDs match**: You should see `bird_1` through `bird_10` appear in the planned job names.
+- **Sample IDs match**: You should see `zf_26462` through `zf_26733` appear in the planned job names.
 - **Expected rules are queued**: Look for `get_fastq_pe` (SRA download), `fastp` (trimming), `bwa_map` (alignment), `gatk_haplotypecaller` (variant calling), and QC rules.
 - **No errors**: If you see a schema validation error, double-check your sample sheet columns and config syntax.
 
@@ -194,8 +191,8 @@ snakemake \
   --use-conda \
   --conda-prefix ~/snparcher_envs \
   --cores 8 \
-  --directory ~/projects/secretarybird_reseq \
-  --workflow-profile ~/projects/secretarybird_reseq/workflow-profiles/default
+  --directory ~/projects/zebrafinch_reseq \
+  --workflow-profile ~/projects/zebrafinch_reseq/workflow-profiles/default
 ```
 
 Flag breakdown:
@@ -236,8 +233,8 @@ Reattach later with `tmux attach -t snparcher`.
       --snakefile ~/snparcher/workflow/Snakefile \
       --use-conda \
       --conda-prefix ~/snparcher_envs \
-      --directory ~/projects/secretarybird_reseq \
-      --workflow-profile ~/projects/secretarybird_reseq/workflow-profiles/default
+      --directory ~/projects/zebrafinch_reseq \
+      --workflow-profile ~/projects/zebrafinch_reseq/workflow-profiles/default
     ```
 
     The controller job needs minimal resources. It only orchestrates other jobs that run on compute nodes.
@@ -250,8 +247,8 @@ You will see messages like:
 
 ```text
 rule fastp:
-    input: data/reads/bird_1_R1.fq.gz, data/reads/bird_1_R2.fq.gz
-    output: results/reads/trimmed/bird_1_R1.fq.gz, results/reads/trimmed/bird_1_R2.fq.gz
+    input: data/reads/zf_26462_R1.fq.gz, data/reads/zf_26462_R2.fq.gz
+    output: results/reads/trimmed/zf_26462_R1.fq.gz, results/reads/trimmed/zf_26462_R2.fq.gz
     jobid: 42
 ```
 
@@ -270,7 +267,7 @@ To diagnose failures, check the log files in this order:
 Once the pipeline completes, the QC dashboard is at:
 
 ```text
-~/projects/secretarybird_reseq/results/qc/qc_dashboard.html
+~/projects/zebrafinch_reseq/results/qc/qc_dashboard.html
 ```
 
 Open this file in a web browser.
@@ -278,15 +275,15 @@ The dashboard is interactive. You can zoom, pan, and hover over points to see sa
 
 Walk through each panel:
 
-1. **Header summary**: Check the number of samples processed, total SNPs detected, estimated nucleotide diversity (Watterson's theta), and average genome-wide depth. For a 10-sample bird resequencing project at ~10x coverage, expect Watterson's theta on the order of 0.001-0.01 and tens of thousands to millions of SNPs depending on genome size.
+1. **Header summary**: Check the number of samples processed, total SNPs detected, estimated nucleotide diversity (Watterson's theta), and average genome-wide depth. For 10 zebra finch samples, expect Watterson's theta on the order of 0.001-0.01 and millions of SNPs given the ~1.1 Gb genome.
 
-2. **PCA (Figure 1)**: Samples are colored by k-means cluster assignment (k=3 by default). Look for any unexpected groupings. With 10 secretary bird samples from similar populations, you might expect a relatively tight cluster. Distinct groups could indicate population structure or a technical batch effect worth investigating.
+2. **PCA (Figure 1)**: Samples are colored by k-means cluster assignment (k=3 by default). Look for any unexpected groupings. With 10 wild zebra finch samples, you might expect a relatively tight cluster. Distinct groups could indicate population structure or a technical batch effect worth investigating.
 
 3. **Depth vs. PC plots (Figure 2)**: Check whether sequencing depth correlates with any of the top principal components. A strong correlation indicates that depth variation is driving more of the observed genetic structure than real biological differences, and that depth normalization or stricter sample filtering is warranted.
 
 4. **Depth vs. missingness (Figure 3)**: Samples with low depth tend to have high missingness. Identify outliers with unusually high missingness for exclusion in postprocessing.
 
-5. **Mapping rate vs. depth (Figure 4)**: Mapping rates below ~80% may indicate contamination or that a sample is not the expected species. All secretary bird samples should have consistently high mapping rates against the secretary bird reference.
+5. **Mapping rate vs. depth (Figure 4)**: Mapping rates below ~80% may indicate contamination or that a sample is not the expected species. All zebra finch samples should have consistently high mapping rates against the zebra finch reference.
 
 6. **Inbreeding coefficient (Figure 5)**: Look for outliers with strongly negative F values, which can indicate cross-contamination between samples. Positive values indicate excess homozygosity.
 
@@ -307,30 +304,30 @@ The postprocessing module re-filters the VCF with those exclusions applied and a
 
 ### Mark samples for exclusion
 
-Create a sample metadata file at `~/projects/secretarybird_reseq/config/sample_metadata.csv`.
+Create a sample metadata file at `~/projects/zebrafinch_reseq/config/sample_metadata.csv`.
 This file links back to sample IDs from your sample sheet and provides module-specific metadata.
 For postprocessing, the key column is `exclude`:
 
 ```csv
 sample_id,exclude
-bird_1,false
-bird_2,false
-bird_3,true
-bird_4,false
-bird_5,false
-bird_6,false
-bird_7,false
-bird_8,false
-bird_9,false
-bird_10,false
+zf_26462,false
+zf_28339,false
+zf_28353,true
+zf_26721,false
+zf_28456,false
+zf_28402,false
+zf_26516,false
+zf_28404,false
+zf_26820,false
+zf_26733,false
 ```
 
-In this example, we are excluding `bird_3` (perhaps it had low depth or high missingness in the QC report).
+In this example, we are excluding `zf_28353` (perhaps it had low depth or high missingness in the QC report).
 Set `exclude` to `true` for any sample you want to remove.
 
 ### Enable postprocessing in the config
 
-Edit `~/projects/secretarybird_reseq/config/config.yaml` and add the `sample_metadata` path and enable the postprocess module:
+Edit `~/projects/zebrafinch_reseq/config/config.yaml` and add the `sample_metadata` path and enable the postprocess module:
 
 ```yaml
 sample_metadata: "config/sample_metadata.csv"  # <-- add this line
@@ -359,8 +356,8 @@ snakemake \
   --use-conda \
   --conda-prefix ~/snparcher_envs \
   --cores 8 \
-  --directory ~/projects/secretarybird_reseq \
-  --workflow-profile ~/projects/secretarybird_reseq/workflow-profiles/default
+  --directory ~/projects/zebrafinch_reseq \
+  --workflow-profile ~/projects/zebrafinch_reseq/workflow-profiles/default
 ```
 
 ## Step 10: Verify the final output
@@ -368,7 +365,7 @@ snakemake \
 Postprocessing produces several output files under `results/postprocess/`:
 
 ```bash
-ls -lh ~/projects/secretarybird_reseq/results/postprocess/
+ls -lh ~/projects/zebrafinch_reseq/results/postprocess/
 ```
 
 You should see:
@@ -380,7 +377,7 @@ You should see:
 Count variants in the clean SNPs file to confirm it is populated:
 
 ```bash
-bcftools stats ~/projects/secretarybird_reseq/results/postprocess/clean_snps.vcf.gz | grep "^SN"
+bcftools stats ~/projects/zebrafinch_reseq/results/postprocess/clean_snps.vcf.gz | grep "^SN"
 ```
 
 This prints summary numbers including total records, SNPs, and samples.
@@ -389,11 +386,11 @@ Confirm the sample count matches your expectation (original 10 minus any exclude
 You can also verify that excluded samples were actually removed:
 
 ```bash
-bcftools query -l ~/projects/secretarybird_reseq/results/postprocess/clean_snps.vcf.gz
+bcftools query -l ~/projects/zebrafinch_reseq/results/postprocess/clean_snps.vcf.gz
 ```
 
 This lists the sample names in the VCF.
-`bird_3` (or whichever samples you excluded) should not appear.
+`zf_28353` (or whichever samples you excluded) should not appear.
 
 ## Summary
 
