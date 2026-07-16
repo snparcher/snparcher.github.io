@@ -1,12 +1,27 @@
-name: Documentation
+name: Build & deploy docs
+
+# Docs are authored in harvardinformatics/snparcher (under website/).
+# This repo only builds and publishes them to GitHub Pages.
 on:
-  push:
-    branches:
-      - main
+  # snpArcher fires this when its website/ changes (see its notify-docs workflow)
+  repository_dispatch:
+    types: [docs-updated]
+  # Manual "Run workflow" button
+  workflow_dispatch:
+  # Self-healing fallback in case a dispatch is missed
+  schedule:
+    - cron: "0 6 * * *" # 06:00 UTC daily
+
 permissions:
   contents: read
   pages: write
   id-token: write
+
+# Never run two Pages deploys at once
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
   deploy:
     environment:
@@ -14,12 +29,19 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - name: Check out snpArcher (docs source of truth)
+        uses: actions/checkout@v5
+        with:
+          repository: harvardinformatics/snparcher
+          ref: main
       - uses: actions/configure-pages@v5
       - uses: prefix-dev/setup-pixi@v0.8.1
-      - run: pixi run build
+        with:
+          manifest-path: website/pixi.toml
+      - name: Build site
+        run: pixi run --manifest-path website/pixi.toml build
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: site
+          path: website/site
       - uses: actions/deploy-pages@v4
         id: deployment
